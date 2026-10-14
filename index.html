@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Help Desk · Registro</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1f6feb">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" onerror="window.XLSX=null"></script>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--tx:#1b1f24;--mut:#667085;--bd:#d9dde3;--ac:#1f6feb;--ok:#1a7f4b;--wr:#b54708;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111418;--card:#1b2027;--tx:#e8ebf0;--mut:#98a2b3;--bd:#2d343e;--ac:#5b9bff;--ok:#4ade80;--wr:#fdb022;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#111418;--card:#1b2027;--tx:#e8ebf0;--mut:#98a2b3;--bd:#2d343e;--ac:#5b9bff;--ok:#4ade80;--wr:#fdb022;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+main{max-width:640px;margin:0 auto;padding:12px 14px 40px}
+h1{font-size:18px;margin:6px 0 2px}.sub{color:var(--mut);font-size:13px;margin-bottom:10px}
+.tabs{display:flex;gap:6px;margin:8px 0 12px}
+.tabs button{flex:1;padding:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;font-size:15px}
+.tabs button.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px;text-transform:uppercase;letter-spacing:.03em}
+input,select,textarea{width:100%;padding:11px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);font:inherit}
+textarea{min-height:84px;resize:vertical}
+.u{text-transform:uppercase}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.btn{width:100%;padding:14px;border:0;border-radius:12px;font-size:17px;font-weight:600;color:#fff;background:var(--ac);margin-top:14px}
+.btn.ok{background:var(--ok)}.btn.sec{background:var(--card);color:var(--tx);border:1px solid var(--bd);font-weight:500;font-size:15px;padding:11px}
+.btn.sm{width:auto;padding:8px 12px;font-size:14px;margin:0}
+.badge{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:var(--bg);border:1px solid var(--bd);color:var(--mut)}
+.timer{font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--wr)}
+.hint{font-size:12px;color:var(--ok);margin-top:4px;min-height:16px}
+.it{border-top:1px solid var(--bd);padding:10px 0}.it:first-child{border-top:0}
+.it b{font-size:14px}.it p{margin:4px 0;font-size:14px;color:var(--mut)}
+.it .a{display:flex;gap:8px;margin-top:6px}
+dialog{width:min(94vw,560px);border:1px solid var(--bd);border-radius:14px;background:var(--card);color:var(--tx);padding:14px;max-height:90vh;overflow:auto}
+dialog::backdrop{background:#0008}
+.msg{font-size:13px;color:var(--mut);margin-top:8px}
+.hide{display:none}
+</style>
+</head>
+<body>
+<main>
+<h1>Registro de incidencias</h1>
+<div class="sub">Soporte: <b id="code"></b> · <a href="#" id="chg" style="color:var(--ac)">cambiar</a> · <a href="#" id="set" style="color:var(--ac)">ajustes Google</a></div>
+<div class="card" id="st" style="padding:10px;font-size:14px"></div>
+<div class="tabs"><button id="t1" class="on">Tarea</button><button id="t2">Historial / Excel</button></div>
+
+<section id="v1">
+  <div id="actives"></div>
+
+  <div id="newt" class="card">
+    <b>Nueva tarea</b>
+    <label>Problema que reporta</label>
+    <textarea id="prob" class="u" placeholder="Describe el problema"></textarea>
+    <div class="hint" id="sug"></div>
+    <label>Usuario (a quién das soporte)</label>
+    <input id="usr" class="u" list="dl-usr" autocomplete="off" placeholder="Ej: JPOZO">
+    <div class="row">
+      <div><label>Empresa</label><input id="emp" class="u" list="dl-emp" autocomplete="off"></div>
+      <div><label>Ubicación</label><input id="ubi" class="u" list="dl-ubi" autocomplete="off"></div>
+    </div>
+    <label>Tipo de incidencia</label>
+    <input id="inc" class="u" list="dl-inc" autocomplete="off">
+    <div class="hint" id="auto"></div>
+    <button class="btn" id="ini">Iniciar tarea</button>
+    <div class="msg">Al iniciar se guarda la fecha y hora actuales.</div>
+  </div>
+</section>
+
+<section id="v2" class="hide">
+  <div class="card">
+    <div class="row">
+      <div><label>Desde</label><input type="date" id="d1"></div>
+      <div><label>Hasta</label><input type="date" id="d2"></div>
+    </div>
+    <button class="btn" id="xl">Descargar Excel (.xlsx)</button>
+    <button class="btn sec" id="cp" style="width:100%;margin-top:8px">Copiar filas para pegar en mi Excel</button>
+    <div class="msg" id="xmsg">El archivo usa tus mismas columnas. Al copiar filas, pégalas debajo de la última fila de tu tabla.</div>
+  </div>
+  <div class="card" id="list"></div>
+</section>
+</main>
+
+<datalist id="dl-usr"></datalist><datalist id="dl-emp"></datalist><datalist id="dl-ubi"></datalist><datalist id="dl-inc"></datalist>
+
+<dialog id="cdlg">
+  <b>Conexión con Google Sheets</b>
+  <label>ID de cliente OAuth (Google Cloud)</label><input id="c-cid" autocomplete="off" placeholder="xxxx.apps.googleusercontent.com">
+  <label>Enlace o ID de tu Hoja de Google</label><input id="c-sid" autocomplete="off" placeholder="https://docs.google.com/spreadsheets/d/...">
+  <label>Nombre de la pestaña</label><input id="c-tab" autocomplete="off" placeholder="HELP DESK">
+  <div class="row"><button class="btn sec" id="c-x">Cancelar</button><button class="btn" id="c-ok">Guardar</button></div>
+</dialog>
+
+<dialog id="dlg">
+  <b>Editar registro</b>
+  <label>Fecha</label><input type="date" id="e-fec">
+  <div class="row"><div><label>Hora inicio</label><input type="time" id="e-hi"></div><div><label>Hora fin</label><input type="time" id="e-hf"></div></div>
+  <label>Usuario</label><input id="e-usr" class="u" list="dl-usr">
+  <div class="row"><div><label>Empresa</label><input id="e-emp" class="u" list="dl-emp"></div><div><label>Ubicación</label><input id="e-ubi" class="u" list="dl-ubi"></div></div>
+  <label>Incidencia</label><input id="e-inc" class="u" list="dl-inc">
+  <label>Problema</label><textarea id="e-prob" class="u"></textarea>
+  <label>Solución</label><textarea id="e-sol" class="u"></textarea>
+  <div class="row"><button class="btn sec" id="e-x">Cancelar</button><button class="btn" id="e-ok">Guardar</button></div>
+</dialog>
+
+<script>
+const $=id=>document.getElementById(id);
+const SEED={
+ emp:["FOODPACKING","PORKGEN","FABIANACORP","PORKRIB","CARVIS","PROVEEDOR","SUPERMERCADOSDK","NETHERLANDS"],
+ ubi:["MATRIZ/URDESA","PLANTA","AZUCAR","DESPACHO","ENGORDE","MATERNIDAD/RECRIA","EMPALME","LOS ANGELES","BABA","GRANJA","VERMONT PLAZA"],
+ inc:["ABACO","BASE DE DATOS","BIOMETRICO","SOPORTE","EQUIPO","FACTURAS","LISTA DE PRECIOS","BIZERBA","INTERNET","REDES","IMPRESORAS","ENERGIA ELECTRICA","CAPACITACION","REUNION","LICENCIAS","SERVIDOR","CCTV","TELEFONIA","FREEZONE"],
+ usr:["JPOZO","GPENAFIEL","JCRENDON","JCORDERO","JLOOR","EARRIAGA","YMARQUINA","DPOZOBON","RMONTES","JCRUIZ","FCABELLO","MTAGLE","ARODRIGUEZ","KMEDINA"]
+};
+// palabras clave -> incidencia (orden = prioridad)
+const KW=[
+ ["BIZERBA",/bizerba|cabezal|balanza|pesar|pesaje/i],
+ ["BIOMETRICO",/huella|biometric|reloj de asistencia|marcaci/i],
+ ["IMPRESORAS",/impresora|imprimir|toner|tinta|etiquetadora|zebra/i],
+ ["BASE DE DATOS",/respaldo|backup|sql|base de datos|restaur/i],
+ ["LISTA DE PRECIOS",/lista de precios|precios/i],
+ ["FACTURAS",/factur|retenci|nota de cr[eé]dito|guia de remisi/i],
+ ["ABACO",/abaco|ábaco|inventario|bodega|recalculo|saldos/i],
+ ["LICENCIAS",/licencia|activaci[oó]n|office|windows key/i],
+ ["INTERNET",/sin internet|no tienen internet|no hay internet|telconet|dobra|proveedor de internet/i],
+ ["REDES",/red\b|redes|wifi|switch|router|cable de red|conectividad|vpn|ip\b/i],
+ ["CCTV",/c[aá]mara|cctv|dvr|nvr/i],
+ ["TELEFONIA",/tel[eé]fono|extensi[oó]n|central telef|celular/i],
+ ["ENERGIA ELECTRICA",/energ[ií]a|apag[oó]n|ups|corte de luz|el[eé]ctric/i],
+ ["SERVIDOR",/servidor|server|hyper-?v|vm\b/i],
+ ["CAPACITACION",/capacit|explic|ense[nñ]/i],
+ ["REUNION",/reuni[oó]n|junta/i],
+ ["EQUIPO",/computador|laptop|pc\b|monitor|mouse|teclado|instal|formate|lento|se apaga|no enciende/i],
+ ["FREEZONE",/freezone/i]
+];
+let S={cfg:{code:"JRUIZ"},recs:[]},tick=null;
+try{const r=localStorage.getItem("hd_v1");if(r)S=JSON.parse(r)}catch(e){}
+function save(){try{localStorage.setItem("hd_v1",JSON.stringify(S))}catch(e){}}
+const U=s=>(s||"").trim().replace(/\s+/g," ").toUpperCase();
+const pad=n=>String(n).padStart(2,"0");
+const dISO=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+function hAMPM(d){let h=d.getHours(),m=d.getMinutes(),ap=h>=12?"PM":"AM";h=h%12||12;return h+":"+pad(m)+ap}
+const tIn=d=>pad(d.getHours())+":"+pad(d.getMinutes());
+const mk=(f,t)=>new Date(f+"T"+t+":00");
+
+function vals(k){
+  const m={usr:"usuario",emp:"empresa",ubi:"ubic",inc:"inc"}[k];
+  const c={};SEED[k].forEach(v=>c[v]=1);S.recs.forEach(r=>{if(r[m])c[r[m]]=(c[r[m]]||0)+1});
+  return Object.keys(c).sort((a,b)=>c[b]-c[a]||a.localeCompare(b));
+}
+function lists(){["usr","emp","ubi","inc"].forEach(k=>{$("dl-"+k).innerHTML=vals(k).map(v=>`<option value="${v.replace(/"/g,"&quot;")}">`).join("")})}
+
+// Autocompletado inteligente
+function suggestInc(txt){
+  for(const [n,re] of KW) if(re.test(txt)) return n;
+  // aprender de historial: coincidencia de palabras con registros previos
+  const w=txt.toLowerCase().split(/\W+/).filter(x=>x.length>4);if(!w.length)return "";
+  const sc={};S.recs.forEach(r=>{const p=(r.prob||"").toLowerCase();const n=w.filter(x=>p.includes(x)).length;if(n)sc[r.inc]=(sc[r.inc]||0)+n});
+  const b=Object.entries(sc).sort((a,b)=>b[1]-a[1])[0];return b&&b[1]>=2?b[0]:"";
+}
+let incManual=false;
+$("inc").addEventListener("input",()=>{incManual=true});
+$("prob").addEventListener("input",()=>{
+  const s=suggestInc($("prob").value);
+  $("sug").textContent=s&&!incManual?"Incidencia sugerida: "+s:"";
+  if(s&&!incManual)$("inc").value=s;
+});
+$("usr").addEventListener("change",()=>{
+  const u=U($("usr").value);$("usr").value=u;
+  const last=[...S.recs].reverse().find(r=>r.usuario===u);
+  if(last){if(!$("emp").value)$("emp").value=last.empresa;if(!$("ubi").value)$("ubi").value=last.ubic;
+    $("auto").textContent="Empresa y ubicación tomadas de tu último registro con "+u}
+  else $("auto").textContent="";
+});
+
+// Flujo de tarea
+const acts=()=>S.recs.filter(r=>!r.end);
+const esc=x=>String(x||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function elapsed(t){const s=Math.max(0,Math.floor((Date.now()-t)/1000));return pad(Math.floor(s/3600))+":"+pad(Math.floor(s%3600/60))+":"+pad(s%60)}
+function tickAll(){document.querySelectorAll(".timer[data-st]").forEach(e=>e.textContent=elapsed(+e.dataset.st))}
+setInterval(tickAll,1000);
+function render(){
+  lists();$("code").textContent=S.cfg.code;
+  $("actives").innerHTML=acts().map(r=>{const st=new Date(r.start);
+    return `<div class="card"><span class="badge">EN CURSO</span> <span class="timer" data-st="${st.getTime()}">00:00:00</span>
+    <div class="msg"><b>${esc(r.usuario)}</b> · ${esc(r.empresa)} · ${esc(r.ubic)}<br>${esc(r.inc)}<br>${esc(r.prob)}<br>Inició ${dISO(st)} ${hAMPM(st)}</div>
+    <label>Solución aplicada / trabajo realizado</label>
+    <textarea id="sol-${r.id}" class="u" placeholder="Qué hiciste para resolverlo">${esc(r.draft)}</textarea>
+    <button class="btn ok" onclick="fin(${r.id})">Finalizar tarea</button></div>`}).join("");
+  tickAll();renderList();status();
+}
+$("actives").addEventListener("input",e=>{const r=S.recs.find(x=>"sol-"+x.id===e.target.id);if(r){r.draft=e.target.value;save()}});
+$("ini").onclick=()=>{
+  const r={id:Date.now(),start:new Date().toISOString(),end:null,usuario:U($("usr").value),empresa:U($("emp").value),ubic:U($("ubi").value),inc:U($("inc").value),prob:U($("prob").value),sol:""};
+  if(!r.prob||!r.usuario){alert("Falta el problema y el usuario.");return}
+  if(!r.inc)r.inc=suggestInc(r.prob)||"SOPORTE";
+  S.recs.push(r);save();
+  ["prob","usr","emp","ubi","inc"].forEach(i=>$(i).value="");$("sug").textContent="";$("auto").textContent="";incManual=false;
+  render();
+};
+window.fin=id=>{
+  const a=S.recs.find(r=>r.id===id);if(!a)return;const t=U(a.draft);
+  if(!t){alert("Escribe el trabajo realizado.");return}
+  a.sol=t;a.end=new Date().toISOString();delete a.draft;save();render();sync();
+};
+$("chg").onclick=e=>{e.preventDefault();const c=prompt("Tu código de soporte:",S.cfg.code);if(c){S.cfg.code=U(c);save();render()}};
+
+// Tabs
+function tab(n){$("v1").classList.toggle("hide",n!=1);$("v2").classList.toggle("hide",n!=2);$("t1").classList.toggle("on",n==1);$("t2").classList.toggle("on",n==2);if(n==2)renderList()}
+$("t1").onclick=()=>tab(1);$("t2").onclick=()=>tab(2);
+
+// Historial
+const now=new Date();$("d1").value=dISO(new Date(now.getFullYear(),now.getMonth(),1));$("d2").value=dISO(now);
+$("d1").onchange=$("d2").onchange=()=>renderList();
+function inRange(){const a=$("d1").value,b=$("d2").value;return S.recs.filter(r=>{const d=dISO(new Date(r.start));return (!a||d>=a)&&(!b||d<=b)}).sort((x,y)=>new Date(x.start)-new Date(y.start))}
+function renderList(){
+  const L=inRange().slice().reverse();
+  $("list").innerHTML=L.length?L.map(r=>{const s=new Date(r.start),e=r.end&&new Date(r.end);
+    return `<div class="it"><b>${dISO(s)} · ${hAMPM(s)}${e?" → "+hAMPM(e):" (en curso)"}</b> <span class="badge">${r.inc}</span>
+    <p>${r.usuario} · ${r.empresa} · ${r.ubic}</p><p>${r.prob}</p>${r.sol?`<p>✔ ${r.sol}</p>`:""}
+    <div class="a"><button class="btn sec sm" onclick="ed(${r.id})">Editar</button><button class="btn sec sm" onclick="del(${r.id})">Borrar</button></div></div>`}).join(""):'<div class="msg">Sin registros en este rango.</div>';
+}
+window.del=id=>{if(confirm("¿Borrar este registro?")){S.recs=S.recs.filter(r=>r.id!==id);save();render()}};
+let eid=null;
+window.ed=id=>{
+  const r=S.recs.find(x=>x.id===id);if(!r)return;eid=id;const s=new Date(r.start),e=r.end&&new Date(r.end);
+  $("e-fec").value=dISO(s);$("e-hi").value=tIn(s);$("e-hf").value=e?tIn(e):"";
+  $("e-usr").value=r.usuario;$("e-emp").value=r.empresa;$("e-ubi").value=r.ubic;$("e-inc").value=r.inc;$("e-prob").value=r.prob;$("e-sol").value=r.sol;
+  $("dlg").showModal();
+};
+$("e-x").onclick=()=>$("dlg").close();
+$("e-ok").onclick=()=>{
+  const r=S.recs.find(x=>x.id===eid);if(!r)return;
+  r.start=mk($("e-fec").value,$("e-hi").value||"00:00").toISOString();
+  r.end=$("e-hf").value?mk($("e-fec").value,$("e-hf").value).toISOString():null;
+  r.usuario=U($("e-usr").value);r.empresa=U($("e-emp").value);r.ubic=U($("e-ubi").value);r.inc=U($("e-inc").value);r.prob=U($("e-prob").value);r.sol=U($("e-sol").value);
+  save();$("dlg").close();render();
+};
+
+// Exportar (mismas columnas que HELP DESK)
+const HEAD=["NO.","FECHA","HORA","USUARIO","EMPRESA","UBICACIÓN","PROBLEMA QUE REPORTA","SOLUCION APLICADA AL REPORTE","HORA CONCLUIDA","SOPORTE","INCIDENCIAS"];
+function rows(){return inRange().filter(r=>r.end).map((r,i)=>{const s=new Date(r.start),e=new Date(r.end);
+  return [i+1,new Date(s.getFullYear(),s.getMonth(),s.getDate()),hAMPM(s),r.usuario,r.empresa,r.ubic,r.prob,r.sol,hAMPM(e),S.cfg.code,r.inc]})}
+$("xl").onclick=async()=>{
+  const R=rows();if(!R.length){$("xmsg").textContent="No hay tareas finalizadas en ese rango.";return}
+  const ws=XLSX.utils.aoa_to_sheet([[],[],["","REGISTRO DE INCIDENCIAS DE PROBLEMAS EN EL AREA DE SISTEMAS"],HEAD,...R],{cellDates:true});
+  ws["!merges"]=[{s:{r:2,c:1},e:{r:2,c:9}}];
+  ws["!cols"]=[6,12,10,14,18,20,70,90,14,10,16].map(w=>({wch:w}));
+  R.forEach((_,i)=>{const c=ws["B"+(5+i)];if(c)c.z="mm-dd-yy"});
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"HELP DESK");
+  const buf=XLSX.write(wb,{type:"array",bookType:"xlsx",cellDates:true});
+  const fn="HELP_DESK_"+($("d1").value||"")+"_"+($("d2").value||"")+".xlsx";
+  const u=URL.createObjectURL(new Blob([buf],{type:"application/octet-stream"}));
+  const l=document.createElement("a");l.href=u;l.download=fn;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+  $("xmsg").textContent="Listo: "+R.length+" registros exportados.";
+};
+$("cp").onclick=async()=>{
+  const R=rows();if(!R.length){$("xmsg").textContent="No hay tareas finalizadas en ese rango.";return}
+  const t=R.map(r=>{const d=r[1];const f=pad(d.getMonth()+1)+"/"+pad(d.getDate())+"/"+d.getFullYear();
+    return [r[0],f,...r.slice(2)].map(x=>String(x).replace(/[\t\n\r]+/g," ")).join("\t")}).join("\n");
+  try{await navigator.clipboard.writeText(t);$("xmsg").textContent=R.length+" filas copiadas. Pégalas en tu Excel."}
+  catch(e){$("xmsg").textContent="No se pudo copiar automáticamente."}
+};
+
+
+// ===== Google Sheets + cola sin conexión =====
+let tok=null,tokExp=0,tc=null,syncing=false,lastErr="";
+try{const t=JSON.parse(localStorage.getItem("hd_tok")||"null");if(t&&t.exp>Date.now()){tok=t.tok;tokExp=t.exp}}catch(e){}
+const pend=()=>S.recs.filter(r=>r.end&&!r.synced);
+const ready=()=>!!(S.cfg.cid&&S.cfg.sid);
+const live=()=>tok&&Date.now()<tokExp;
+function getTc(){
+  if(tc)return tc;if(!window.google||!google.accounts)return null;
+  tc=google.accounts.oauth2.initTokenClient({client_id:S.cfg.cid,scope:"https://www.googleapis.com/auth/spreadsheets",
+    callback:r=>{if(r&&r.access_token){tok=r.access_token;tokExp=Date.now()+(r.expires_in-60)*1000;
+      try{localStorage.setItem("hd_tok",JSON.stringify({tok,exp:tokExp}))}catch(e){}lastErr="";sync()}
+      else{lastErr="No se pudo conectar con Google.";status()}}});
+  return tc;
+}
+window.connect=()=>{const t=getTc();if(!t){lastErr="Necesitas internet para conectar con Google.";status();return}t.requestAccessToken()};
+window.sync=async manual=>{
+  if(syncing||!ready()||!navigator.onLine){status();return}
+  const P=pend().sort((a,b)=>new Date(a.start)-new Date(b.start));if(!P.length){status();return}
+  if(!live()){status();if(manual===true)connect();return}
+  syncing=true;status();
+  try{
+    for(const r of P){
+      const s=new Date(r.start),e=new Date(r.end);
+      const row=["=ROW()-4",dISO(s),hAMPM(s),r.usuario,r.empresa,r.ubic,r.prob,r.sol,hAMPM(e),S.cfg.code,r.inc];
+      const rng=encodeURIComponent("'"+(S.cfg.tab||"HELP DESK")+"'!A:K");
+      const res=await fetch("https://sheets.googleapis.com/v4/spreadsheets/"+S.cfg.sid+"/values/"+rng+":append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",
+        {method:"POST",headers:{Authorization:"Bearer "+tok,"Content-Type":"application/json"},body:JSON.stringify({values:[row]})});
+      if(res.status===401){tok=null;tokExp=0;lastErr="Sesión de Google vencida: toca Conectar.";break}
+      if(!res.ok){let m="";try{m=(await res.json()).error.message}catch(x){}lastErr="Google respondió "+res.status+": "+m;break}
+      r.synced=true;save();lastErr="";
+    }
+  }catch(e){lastErr="Sin conexión estable; se reintentará."}
+  syncing=false;render();
+};
+function status(){
+  const n=pend().length;let t=navigator.onLine?"🟢 En línea":"🔴 Sin conexión";
+  t+=!ready()?" · Google sin configurar":live()?" · Google conectado":" · Google sin conectar";
+  t+=" · Pendientes de subir: <b>"+n+"</b>"+(syncing?" · subiendo…":"");
+  if(ready()&&!live())t+=' <button class="btn sec sm" onclick="connect()">Conectar</button>';
+  else if(ready()&&n&&!syncing)t+=' <button class="btn sec sm" onclick="sync(true)">Sincronizar</button>';
+  if(lastErr)t+='<div class="msg" style="color:var(--wr)">'+esc(lastErr)+'</div>';
+  $("st").innerHTML=t;
+}
+$("set").onclick=e=>{e.preventDefault();$("c-cid").value=S.cfg.cid||"";$("c-sid").value=S.cfg.sid||"";$("c-tab").value=S.cfg.tab||"HELP DESK";$("cdlg").showModal()};
+$("c-x").onclick=()=>$("cdlg").close();
+$("c-ok").onclick=()=>{
+  const m=$("c-sid").value.match(/\/d\/([\w-]+)/);
+  S.cfg.cid=$("c-cid").value.trim();S.cfg.sid=m?m[1]:$("c-sid").value.trim();S.cfg.tab=$("c-tab").value.trim()||"HELP DESK";
+  tc=null;tok=null;tokExp=0;save();$("cdlg").close();render();
+};
+addEventListener("online",()=>{status();sync()});addEventListener("offline",status);
+setInterval(()=>sync(),60000);
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
+render();
+</script>
