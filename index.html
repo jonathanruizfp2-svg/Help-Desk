@@ -91,7 +91,7 @@ dialog::backdrop{background:#0008}
   <b>Conexión con Google Sheets</b>
   <label>ID de cliente OAuth (Google Cloud)</label><input id="c-cid" autocomplete="off" placeholder="xxxx.apps.googleusercontent.com">
   <label>Enlace o ID de tu Hoja de Google</label><input id="c-sid" autocomplete="off" placeholder="https://docs.google.com/spreadsheets/d/...">
-  <label>Nombre de la pestaña</label><input id="c-tab" autocomplete="off" placeholder="HELP DESK">
+  <label>Nombre de la pestaña</label><input id="c-tab" autocomplete="off" placeholder="HELP DESK 1">
   <div class="row"><button class="btn sec" id="c-x">Cancelar</button><button class="btn" id="c-ok">Guardar</button></div>
 </dialog>
 
@@ -290,9 +290,14 @@ window.sync=async manual=>{
     for(const r of P){
       const s=new Date(r.start),e=new Date(r.end);
       const row=["=ROW()-4",dISO(s),hAMPM(s),r.usuario,r.empresa,r.ubic,r.prob,r.sol,hAMPM(e),S.cfg.code,r.inc];
-      const rng=encodeURIComponent("'"+(S.cfg.tab||"HELP DESK")+"'!A:K");
-      const res=await fetch("https://sheets.googleapis.com/v4/spreadsheets/"+S.cfg.sid+"/values/"+rng+":append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",
-        {method:"POST",headers:{Authorization:"Bearer "+tok,"Content-Type":"application/json"},body:JSON.stringify({values:[row]})});
+      const base="https://sheets.googleapis.com/v4/spreadsheets/"+S.cfg.sid+"/values/";
+      const tab="'"+(S.cfg.tab||"HELP DESK 1")+"'!";
+      const H={Authorization:"Bearer "+tok,"Content-Type":"application/json"};
+      let res=await fetch(base+encodeURIComponent(tab+"B5:B"),{headers:H});
+      if(res.ok){
+        const n=5+(((await res.json()).values)||[]).length;
+        res=await fetch(base+encodeURIComponent(tab+"B"+n+":K"+n)+"?valueInputOption=USER_ENTERED",{method:"PUT",headers:H,body:JSON.stringify({values:[row.slice(1)]})});
+      }
       if(res.status===401){tok=null;tokExp=0;lastErr="Sesión de Google vencida: toca Conectar.";break}
       if(!res.ok){let m="";try{m=(await res.json()).error.message}catch(x){}lastErr="Google respondió "+res.status+": "+m;break}
       r.synced=true;save();lastErr="";
@@ -309,11 +314,11 @@ function status(){
   if(lastErr)t+='<div class="msg" style="color:var(--wr)">'+esc(lastErr)+'</div>';
   $("st").innerHTML=t;
 }
-$("set").onclick=e=>{e.preventDefault();$("c-cid").value=S.cfg.cid||"";$("c-sid").value=S.cfg.sid||"";$("c-tab").value=S.cfg.tab||"HELP DESK";$("cdlg").showModal()};
+$("set").onclick=e=>{e.preventDefault();$("c-cid").value=S.cfg.cid||"";$("c-sid").value=S.cfg.sid||"";$("c-tab").value=S.cfg.tab||"HELP DESK 1";$("cdlg").showModal()};
 $("c-x").onclick=()=>$("cdlg").close();
 $("c-ok").onclick=()=>{
   const m=$("c-sid").value.match(/\/d\/([\w-]+)/);
-  S.cfg.cid=$("c-cid").value.trim();S.cfg.sid=m?m[1]:$("c-sid").value.trim();S.cfg.tab=$("c-tab").value.trim()||"HELP DESK";
+  S.cfg.cid=$("c-cid").value.trim();S.cfg.sid=m?m[1]:$("c-sid").value.trim();S.cfg.tab=$("c-tab").value.trim()||"HELP DESK 1";
   tc=null;tok=null;tokExp=0;save();$("cdlg").close();render();
 };
 addEventListener("online",()=>{status();sync()});addEventListener("offline",status);
