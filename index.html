@@ -114,7 +114,9 @@ dialog::backdrop{background:#0008}
   <div class="row"><div><label>Empresa</label><input id="e-emp" class="u" list="dl-emp"></div><div><label>Ubicación</label><input id="e-ubi" class="u" list="dl-ubi"></div></div>
   <label>Incidencia</label><input id="e-inc" class="u" list="dl-inc">
   <label>Problema</label><textarea id="e-prob" class="u"></textarea>
+  <button class="btn sec sm" style="margin:6px 0 0" onclick="mejorar('e-prob')">✨ Mejorar redacción</button>
   <label>Solución</label><textarea id="e-sol" class="u"></textarea>
+  <button class="btn sec sm" style="margin:6px 0 0" onclick="mejorar('e-sol')">✨ Mejorar redacción</button>
   <div class="row"><button class="btn sec" id="e-x">Cancelar</button><button class="btn" id="e-ok">Guardar</button></div>
 </dialog>
 
@@ -216,7 +218,7 @@ $("ini").onclick=()=>{
 window.fin=id=>{
   const a=S.recs.find(r=>r.id===id);if(!a)return;const t=U(a.draft);
   if(!t){alert("Escribe el trabajo realizado.");return}
-  a.sol=t;a.end=new Date().toISOString();delete a.draft;save();render();sync();
+  a.sol=t;a.end=new Date().toISOString();delete a.draft;if(!navigator.onLine&&S.cfg.gk)a.hold=true;save();render();sync();
 };
 $("chg").onclick=e=>{e.preventDefault();const c=prompt("Tu código de soporte:",S.cfg.code);if(c){S.cfg.code=U(c);save();render()}};
 
@@ -231,9 +233,9 @@ function inRange(){const a=$("d1").value,b=$("d2").value;return S.recs.filter(r=
 function renderList(){
   const L=inRange().slice().reverse();
   $("list").innerHTML=L.length?L.map(r=>{const s=new Date(r.start),e=r.end&&new Date(r.end);
-    return `<div class="it"><b>${dISO(s)} · ${hAMPM(s)}${e?" → "+hAMPM(e):" (en curso)"}</b> <span class="badge">${r.inc}</span>
+    return `<div class="it"><b>${dISO(s)} · ${hAMPM(s)}${e?" → "+hAMPM(e):" (en curso)"}</b> <span class="badge">${r.inc}</span>${r.hold?'<span class="badge" style="color:var(--wr)">POR REVISAR</span>':""}
     <p>${r.usuario} · ${r.empresa} · ${r.ubic}</p><p>${r.prob}</p>${r.sol?`<p>✔ ${r.sol}</p>`:""}
-    <div class="a"><button class="btn sec sm" onclick="ed(${r.id})">Editar</button><button class="btn sec sm" onclick="del(${r.id})">Borrar</button></div></div>`}).join(""):'<div class="msg">Sin registros en este rango.</div>';
+    <div class="a"><button class="btn sec sm" onclick="ed(${r.id})">${r.hold?"Revisar y subir":"Editar"}</button>${r.hold?`<button class="btn sec sm" onclick="rel(${r.id})">Subir sin revisar</button>`:""}<button class="btn sec sm" onclick="del(${r.id})">Borrar</button></div></div>`}).join(""):'<div class="msg">Sin registros en este rango.</div>';
 }
 window.del=id=>{if(confirm("¿Borrar este registro?")){S.recs=S.recs.filter(r=>r.id!==id);save();render()}};
 let eid=null;
@@ -241,7 +243,7 @@ window.ed=id=>{
   const r=S.recs.find(x=>x.id===id);if(!r)return;eid=id;const s=new Date(r.start),e=r.end&&new Date(r.end);
   $("e-fec").value=dISO(s);$("e-hi").value=tIn(s);$("e-hf").value=e?tIn(e):"";
   $("e-usr").value=r.usuario;$("e-emp").value=r.empresa;$("e-ubi").value=r.ubic;$("e-inc").value=r.inc;$("e-prob").value=r.prob;$("e-sol").value=r.sol;
-  $("dlg").showModal();
+  $("e-ok").textContent=r.hold?"Guardar y subir":"Guardar";$("dlg").showModal();
 };
 $("e-x").onclick=()=>$("dlg").close();
 $("e-ok").onclick=()=>{
@@ -249,8 +251,10 @@ $("e-ok").onclick=()=>{
   r.start=mk($("e-fec").value,$("e-hi").value||"00:00").toISOString();
   r.end=$("e-hf").value?mk($("e-fec").value,$("e-hf").value).toISOString():null;
   r.usuario=U($("e-usr").value);r.empresa=U($("e-emp").value);r.ubic=U($("e-ubi").value);r.inc=U($("e-inc").value);r.prob=U($("e-prob").value);r.sol=U($("e-sol").value);
-  save();$("dlg").close();render();
+  delete r.hold;save();$("dlg").close();render();sync();
 };
+
+window.rel=id=>{const r=S.recs.find(x=>x.id===id);if(r){delete r.hold;save();render();sync()}};
 
 // Exportar (mismas columnas que HELP DESK)
 const HEAD=["NO.","FECHA","HORA","USUARIO","EMPRESA","UBICACIÓN","PROBLEMA QUE REPORTA","SOLUCION APLICADA AL REPORTE","HORA CONCLUIDA","SOPORTE","INCIDENCIAS"];
@@ -281,7 +285,8 @@ $("cp").onclick=async()=>{
 // ===== Google Sheets + cola sin conexión =====
 let tok=null,tokExp=0,tc=null,syncing=false,lastErr="";
 try{const t=JSON.parse(localStorage.getItem("hd_tok")||"null");if(t&&t.exp>Date.now()){tok=t.tok;tokExp=t.exp}}catch(e){}
-const pend=()=>S.recs.filter(r=>r.end&&!r.synced);
+const pend=()=>S.recs.filter(r=>r.end&&!r.synced&&!r.hold);
+const held=()=>S.recs.filter(r=>r.end&&!r.synced&&r.hold);
 const ready=()=>!!(S.cfg.cid&&S.cfg.sid);
 const live=()=>tok&&Date.now()<tokExp;
 function getTc(){
@@ -320,7 +325,7 @@ window.sync=async manual=>{
 function status(){
   const n=pend().length;let t=navigator.onLine?"🟢 En línea":"🔴 Sin conexión";
   t+=!ready()?" · Google sin configurar":live()?" · Google conectado":" · Google sin conectar";
-  t+=" · Pendientes de subir: <b>"+n+"</b>"+(syncing?" · subiendo…":"");
+  t+=" · Pendientes de subir: <b>"+n+"</b>"+(syncing?" · subiendo…":"")+(held().length?" · <b>Por revisar: "+held().length+"</b>":"");
   if(ready()&&!live())t+=' <button class="btn sec sm" onclick="connect()">Conectar</button>';
   else if(ready()&&n&&!syncing)t+=' <button class="btn sec sm" onclick="sync(true)">Sincronizar</button>';
   if(lastErr)t+='<div class="msg" style="color:var(--wr)">'+esc(lastErr)+'</div>';
@@ -353,16 +358,16 @@ async function gem(text,kind){
 }
 let aiApply=null;
 window.mejorar=async id=>{
-  const isP=id==="p",rec=isP?null:S.recs.find(r=>r.id===id);
-  const text=isP?$("prob").value.trim():rec&&(rec.draft||"").trim();
+  const isP=id==="p",isE=typeof id==="string"&&id.startsWith("e-"),rec=(isP||isE)?null:S.recs.find(r=>r.id===id);
+  const text=isP?$("prob").value.trim():isE?$(id).value.trim():rec&&(rec.draft||"").trim();
   if(!text){alert("Escribe primero el texto.");return}
   if(!S.cfg.gk){alert("Falta la clave de Gemini: pégala en «ajustes Google».");return}
   if(!navigator.onLine){alert("Sin conexión: no se puede mejorar la redacción ahora.");return}
   const b=document.activeElement;if(b&&b.tagName==="BUTTON"){b.disabled=true;b.dataset.t=b.textContent;b.textContent="Redactando…"}
   try{
-    const out=U(await gem(text,isP?"problema":"solución"));
+    const out=U(await gem(text,(isP||id==="e-prob")?"problema":"solución"));
     $("a-o").textContent=text;$("a-n").value=out;
-    aiApply=v=>{v=U(v);if(!v)return;if(isP){$("prob").value=v;$("prob").dispatchEvent(new Event("input"))}else{rec.draft=v;save();render()}};
+    aiApply=v=>{v=U(v);if(!v)return;if(isP){$("prob").value=v;$("prob").dispatchEvent(new Event("input"))}else if(isE){$(id).value=v}else{rec.draft=v;save();render()}};
     $("adlg").showModal();
   }catch(e){alert("No se pudo mejorar: "+e.message)}
   if(b&&b.dataset.t){b.disabled=false;b.textContent=b.dataset.t}
